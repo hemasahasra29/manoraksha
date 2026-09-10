@@ -1,0 +1,107 @@
+function QuickCheckInBanner({ onCheckIn }) {
+  const [submittedMood, setSubmittedMood] = useState(null);
+
+  const handleSelect = (emoji, label) => {
+    setSubmittedMood(label);
+    onCheckIn(label);
+  };
+
+  return (
+    <div className="reminder-banner" style={{
+      background: 'linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%)',
+      border: '1px solid #bae6fd',
+      borderRadius: '12px',
+      padding: '16px 20px',
+      marginBottom: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: '12px'
+    }}>
+      <div>
+        <h4 style={{ margin: 0, color: '#0369a1', fontSize: '1rem' }}>
+          🌱 Gentle Daily Check-in
+        </h4>
+        <p style={{ margin: '4px 0 0 0', color: '#0c4a6e', fontSize: '0.875rem' }}>
+          How are you feeling in this moment? Tap once to record.
+        </p>
+      </div>
+
+      {!submittedMood ? (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {[
+            ["😊", "Great"],
+            ["😐", "Okay"],
+            ["😔", "Low"]
+          ].map(([emoji, label]) => (
+            <button
+              key={label}
+              onClick={() => handleSelect(emoji, label)}
+              style={{
+                fontSize: '1.25rem',
+                padding: '8px 12px',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                background: '#ffffff',
+                cursor: 'pointer',
+                transition: 'transform 0.1s ease'
+              }}
+              onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+              onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <span style={{ color: '#0284c7', fontWeight: 600, fontSize: '0.875rem' }}>
+          ✓ Recorded as {submittedMood}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// 1. Add API integration function inside App()
+const sendQuickCheckIn = async (selectedMood) => {
+  setMood(selectedMood); // Keep existing UI state update
+  
+  try {
+    await fetch("http://localhost:8000/api/checkin", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: loginId || "patient01",
+        mood: selectedMood,
+      }),
+    });
+  } catch (error) {
+    console.error("Error storing check-in:", error);
+  }
+};
+
+// 2. Request browser notification permissions on login
+useEffect(() => {
+  if (loggedIn && "Notification" in window) {
+    if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+      Notification.requestPermission();
+    }
+  }
+}, [loggedIn]);
+
+
+
+{screen === "dashboard" && (
+  <div className="content">
+    {/* Gentle Reminder Engine Banner */}
+    <QuickCheckInBanner onCheckIn={sendQuickCheckIn} />
+
+    <section className="hero">
+      {/* Existing hero content */}
+    </section>
+    
+    {/* ... rest of existing dashboard ... */}
+  </div>
+)}
+
