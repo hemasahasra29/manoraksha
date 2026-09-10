@@ -1,0 +1,79 @@
+from fastapi import FastAPI, BackgroundTasks, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional, List
+from apscheduler.schedulers.background import BackgroundScheduler
+import uvicorn
+
+app = FastAPI(title="ManoRaksha Reminder Engine")
+
+# Allow CORS for React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# In-memory storage (Replace with your database models)
+checkin_db = []
+notifications_db = []
+
+class CheckInSchema(BaseModel):
+    user_id: str
+    mood: str
+    note: Optional[str] = ""
+
+class ReminderPreferenceSchema(BaseModel):
+    user_id: str
+    preferred_time: str # "HH:MM"
+    enabled: bool
+
+# Gentle Reminder System Job
+def trigger_gentle_reminders():
+    # Logic to send push notifications to users whose scheduled time matches current time
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    reminder_msg = {
+        "id": len(notifications_db) + 1,
+        "title": "Gentle Check-in 🌱",
+        "message": "How are you feeling right now? Take a quick second for yourself.",
+        "timestamp": timestamp,
+        "type": "reminder"
+    }
+    notifications_db.append(reminder_msg)
+    print(f"[{timestamp}] Gentle Reminder Engine dispatched notification.")
+
+# Initialize background scheduler for periodic reminders
+scheduler = BackgroundScheduler()
+# Runs every 1 hour (adjust cron parameters as needed)
+scheduler.add_job(trigger_gentle_reminders, 'interval', hours=1)
+scheduler.start()
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
+
+# --- API ENDPOINTS ---
+
+@app.post("/api/checkin")
+def quick_checkin(payload: CheckInSchema):
+    """Low-friction endpoint: Single tap data storage"""
+    entry = {
+        "id": len(checkin_db) + 1,
+        "user_id": payload.user_id,
+        "mood": payload.mood,
+        "note": payload.note,
+        "timestamp": datetime.now().isoformat()
+    }
+    checkin_db.append(entry)
+    return {"status": "success", "message": "Check-in logged", "data": entry}
+
+@app.get("/api/notifications/{user_id}")
+def get_user_notifications(user_id: str):
+    """Retrieve pending gentle reminders for the user"""
+    return {"notifications": notifications_db}
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
